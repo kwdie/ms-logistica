@@ -31,14 +31,14 @@ public class ProveedorController {
     @Autowired
     private ProveedorService service;
 
-    // LISTAR
+    // LISTAR PROVEEDORES
     @GetMapping
     public ResponseEntity<List<Proveedor>> listar() {
 
         return ResponseEntity.ok(service.listar());
     }
 
-    // BUSCAR
+    // BUSCAR PROVEEDOR POR ID
     @GetMapping("/{id}")
     public ResponseEntity<Proveedor> buscar(
             @PathVariable Long id) {
@@ -47,7 +47,7 @@ public class ProveedorController {
                 service.buscarPorId(id));
     }
 
-    // GUARDAR
+    // GUARDAR PROVEEDOR
     @PostMapping
     public ResponseEntity<Proveedor> guardar(
             @Valid @RequestBody Proveedor proveedor) {
@@ -59,17 +59,20 @@ public class ProveedorController {
                 .body(nuevoProveedor);
     }
 
-    // ACTUALIZAR
+    // ACTUALIZAR PROVEEDOR
     @PutMapping("/{id}")
     public ResponseEntity<Proveedor> actualizar(
             @PathVariable Long id,
             @Valid @RequestBody Proveedor proveedor) {
 
+        Proveedor proveedorActualizado =
+                service.actualizar(id, proveedor);
+
         return ResponseEntity.ok(
-                service.actualizar(id, proveedor));
+                proveedorActualizado);
     }
 
-    // ELIMINAR
+    // ELIMINAR PROVEEDOR
     @DeleteMapping("/{id}")
     public ResponseEntity<String> eliminar(
             @PathVariable Long id) {

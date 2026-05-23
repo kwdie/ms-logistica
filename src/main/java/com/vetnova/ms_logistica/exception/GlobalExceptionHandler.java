@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    // ERROR PROVEEDOR NO ENCONTRADO
     @ExceptionHandler(ProveedorNoEncontradoException.class)
     public ResponseEntity<String> manejarProveedorNoEncontrado(
             ProveedorNoEncontradoException ex) {
@@ -22,6 +23,7 @@ public class GlobalExceptionHandler {
                 .body(ex.getMessage());
     }
 
+    // ERRORES DE VALIDACIÓN
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, String>> manejarValidaciones(
             MethodArgumentNotValidException ex) {
@@ -35,7 +37,16 @@ public class GlobalExceptionHandler {
                     error.getDefaultMessage());
         });
 
-        return ResponseEntity.badRequest()
-                .body(errores);
+        return ResponseEntity.badRequest().body(errores);
+    }
+
+    // ERROR GENERAL
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<String> manejarErrorGeneral(
+            Exception ex) {
+
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body("Ocurrió un error interno: "
+                        + ex.getMessage());
     }
 }
