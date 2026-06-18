@@ -1,14 +1,17 @@
 package com.vetnova.ms_logistica.service;
 
 import java.util.List;
-
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.springframework.stereotype.Service;
+
+import com.vetnova.ms_logistica.dto.ProveedorRequestDTO;
+import com.vetnova.ms_logistica.dto.ProveedorResponseDTO;
 import com.vetnova.ms_logistica.exception.ProveedorNoEncontradoException;
+import com.vetnova.ms_logistica.exception.ReglaNegocioException;
 import com.vetnova.ms_logistica.model.Proveedor;
 import com.vetnova.ms_logistica.repository.ProveedorRepository;
 
@@ -17,25 +20,84 @@ public class ProveedorService {
 
         private static final Logger logger = LoggerFactory.getLogger(ProveedorService.class);
 
-        @Autowired
-        private ProveedorRepository repository;
+        private final ProveedorRepository repository;
 
-        // LISTAR PROVEEDORES
-        public List<Proveedor> listar() {
-
-                logger.info("Listando proveedores");
-
-                return repository.findAll();
+        public ProveedorService(ProveedorRepository repository) {
+                this.repository = repository;
         }
 
-        // BUSCAR PROVEEDOR POR ID
-        public Proveedor buscarPorId(Long id) {
+        public List<ProveedorResponseDTO> listar() {
+                logger.info("Listando proveedores");
 
+                return repository.findAll()
+                                .stream()
+                                .map(this::convertirAResponse)
+                                .collect(Collectors.toList());
+        }
+
+        public ProveedorResponseDTO buscarPorId(Long id) {
                 logger.info("Buscando proveedor con ID: " + id);
 
+                Proveedor proveedor = obtenerProveedor(id);
+
+                return convertirAResponse(proveedor);
+        }
+
+        public ProveedorResponseDTO guardar(ProveedorRequestDTO dto) {
+                logger.info("Guardando proveedor: " + dto.getNombre());
+
+                validarCorreoDuplicado(dto.getCorreo());
+
+                Proveedor proveedor = new Proveedor();
+
+                proveedor.setNombre(dto.getNombre());
+                proveedor.setEmpresa(dto.getEmpresa());
+                proveedor.setTelefono(dto.getTelefono());
+                proveedor.setCorreo(dto.getCorreo());
+
+                Proveedor proveedorGuardado = repository.save(proveedor);
+
+                logger.info("Proveedor guardado con ID: " + proveedorGuardado.getId());
+
+                return convertirAResponse(proveedorGuardado);
+        }
+
+        public ProveedorResponseDTO actualizar(Long id, ProveedorRequestDTO dto) {
+                logger.info("Actualizando proveedor con ID: " + id);
+
+                Proveedor proveedor = obtenerProveedor(id);
+
+                validarCambioCorreoEnActualizacion(id, dto.getCorreo());
+
+                proveedor.setNombre(dto.getNombre());
+                proveedor.setEmpresa(dto.getEmpresa());
+                proveedor.setTelefono(dto.getTelefono());
+                proveedor.setCorreo(dto.getCorreo());
+
+                Proveedor proveedorActualizado = repository.save(proveedor);
+
+                logger.info("Proveedor actualizado con ID: " + proveedorActualizado.getId());
+
+                return convertirAResponse(proveedorActualizado);
+        }
+
+        public void eliminar(Long id) {
+                logger.info("Eliminando proveedor con ID: " + id);
+
+                Proveedor proveedor = obtenerProveedor(id);
+
+                repository.delete(proveedor);
+
+                logger.info("Proveedor eliminado con ID: " + id);
+        }
+
+        public Proveedor obtenerProveedorEntidad(Long id) {
+                return obtenerProveedor(id);
+        }
+
+        private Proveedor obtenerProveedor(Long id) {
                 return repository.findById(id)
                                 .orElseThrow(() -> {
-
                                         logger.error("Proveedor no encontrado con ID: " + id);
 
                                         return new ProveedorNoEncontradoException(
@@ -43,41 +105,37 @@ public class ProveedorService {
                                 });
         }
 
-        // GUARDAR PROVEEDOR
-        public Proveedor guardar(Proveedor proveedor) {
+        private void validarCorreoDuplicado(String correo) {
+                repository.findByCorreoIgnoreCase(correo)
+                                .ifPresent(proveedor -> {
+                                        logger.error("Correo duplicado: " + correo);
 
-                logger.info("Guardando proveedor: "
-                                + proveedor.getNombre());
-
-                return repository.save(proveedor);
+                                        throw new ReglaNegocioException(
+                                                        "Ya existe un proveedor con ese correo");
+                                });
         }
 
-        // ACTUALIZAR PROVEEDOR
-        public Proveedor actualizar(
-                        Long id,
-                        Proveedor proveedorActualizado) {
+        private void validarCambioCorreoEnActualizacion(
+                        Long proveedorId,
+                        String correo) {
 
-                logger.info("Actualizando proveedor con ID: " + id);
+                repository.findByCorreoIgnoreCase(correo)
+                                .ifPresent(proveedorExistente -> {
+                                        if (!proveedorExistente.getId().equals(proveedorId)) {
+                                                logger.error("Correo asociado a otro proveedor: " + correo);
 
-                Proveedor proveedor = buscarPorId(id);
-                proveedor.setNombre(
-                                proveedorActualizado.getNombre());
-                proveedor.setEmpresa(
-                                proveedorActualizado.getEmpresa());
-                proveedor.setTelefono(
-                                proveedorActualizado.getTelefono());
-                proveedor.setCorreo(
-                                proveedorActualizado.getCorreo());
-                return repository.save(proveedor);
+                                                throw new ReglaNegocioException(
+                                                                "Ya existe otro proveedor con ese correo");
+                                        }
+                                });
         }
 
-        // ELIMINAR PROVEEDOR
-        public void eliminar(Long id) {
-
-                logger.info("Eliminando proveedor con ID: " + id);
-
-                Proveedor proveedor = buscarPorId(id);
-
-                repository.delete(proveedor);
+        private ProveedorResponseDTO convertirAResponse(Proveedor proveedor) {
+                return new ProveedorResponseDTO(
+                                proveedor.getId(),
+                                proveedor.getNombre(),
+                                proveedor.getEmpresa(),
+                                proveedor.getTelefono(),
+                                proveedor.getCorreo());
         }
 }
