@@ -137,7 +137,7 @@ public class SolicitudReposicionService {
             logger.info("Validando producto de inventario ID: " + id);
 
             return webClient.get()
-                    .uri("http://localhost:8086/productos/" + id + "/dto")
+                    .uri("http://localhost:8087/productos/" + id + "/dto")
                     .retrieve()
                     .bodyToMono(ProductoInventarioDTO.class)
                     .block();
